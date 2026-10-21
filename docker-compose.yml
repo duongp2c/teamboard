@@ -1,0 +1,33 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: teamboard-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+    ports:
+      - "1433:1433"          # de mo bang SSMS / Azure Data Studio tu may host
+    volumes:
+      - mssql-data:/var/opt/mssql   # du lieu con lai khi xoa container
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  api:
+    build: .
+    image: teamboard-api
+    container_name: teamboard-api
+    environment:
+      # "db" la ten service => Docker DNS tro toi container SQL Server
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=TeamBoard;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+    ports:
+      - "8081:8080"
+    depends_on:
+      db:
+        condition: service_healthy   # doi SQL Server san sang roi moi start API (de Migrate() chay duoc)
+
+volumes:
+  mssql-data:

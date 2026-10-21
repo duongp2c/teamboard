@@ -15,9 +15,17 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // Apply pending migrations on startup so the DB is created automatically (also handy in Docker)
+// If the DB is unreachable (e.g. LocalDB inside a Linux container), log and keep the app running
 using (var scope = app.Services.CreateScope())
 {
-    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+    try
+    {
+        scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Database migration failed; DB-backed endpoints will not work");
+    }
 }
 
 // Swagger enabled in all environments so it stays reachable inside a container
